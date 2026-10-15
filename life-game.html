@@ -460,111 +460,128 @@
             }
         }
 
-        .mobile-control-menu {
+        /* 移动端统计栏 */
+        .mobile-stats-bar {
             position: fixed;
-            bottom: 10px;
+            top: 10px;
             left: 10px;
             right: 10px;
             background: var(--bg-glass);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: var(--border-radius);
-            padding: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            transform: translateY(120%);
+            padding: 8px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .mobile-stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mobile-stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mobile-stat-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 25px;
+            text-align: center;
+        }
+
+        .mobile-menu-toggle {
+            width: 32px;
+            height: 32px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 50%;
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mobile-menu-toggle:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: scale(1.1);
+        }
+
+        /* 移动端控制菜单 */
+        .mobile-control-menu {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            padding: 20px;
+            transform: translateY(100%);
             transition: transform 0.3s ease;
-            z-index: 998;
-            display: none;
+            z-index: 999;
+            max-height: 70vh;
+            overflow-y: auto;
         }
 
         .mobile-control-menu.show {
-            display: block;
             transform: translateY(0);
         }
 
         @media (max-width: 768px) {
             .stats-bar {
-                flex-direction: row;
-                gap: 20px;
-                padding: 8px 20px;
-                top: 10px;
-                justify-content: center;
-            }
-
-            /* 移动端统计栏自动显示 */
-            #mobileStatsBar {
-                display: flex;
-                gap: 24px;
-            }
-
-            .stat-item.mobile {
-                flex-direction: row;
-                gap: 8px;
-                align-items: center;
-                min-width: 120px;
-            }
-
-            .stat-label.mobile {
-                font-size: 10px;
-                min-width: 60px;
-            }
-
-            .stat-value.mobile {
-                font-size: 14px;
-                margin-left: 4px;
-                font-weight: 600;
-                min-width: 30px;
-                text-align: center;
+                display: none;
             }
 
             .control-panel {
                 display: none;
             }
 
-            /* 移动端控制菜单默认隐藏，通过.show类显示 */
             .mobile-control-menu {
-                display: none !important;
+                display: none;
             }
 
             .mobile-control-menu.show {
-                display: block !important;
+                display: block;
             }
 
-            /* 确保桌面端控制面板显示 */
-            @media (min-width: 769px) {
-                .control-panel {
-                    display: block !important;
-                }
-            }
-
-            /* 确保桌面端控制面板显示 */
-            @media (min-width: 769px) {
-                .control-panel {
-                    display: block;
-                }
-            }
-
-            /* 桌面端隐藏移动端控制切换按钮 */
-            #controlToggle {
-                display: none;
-            }
-
-            .mobile-control-menu {
-                display: none;
+            .mobile-stats-bar {
+                display: flex;
             }
 
             .modal-content {
                 padding: 20px;
             }
+        }
 
-            .control-toggle {
+        @media (min-width: 769px) {
+            .stats-bar {
+                display: flex;
+            }
+            
+            .control-panel {
+                display: block !important;
+            }
+
+            .mobile-stats-bar {
                 display: none;
             }
 
-            .control-toggle.mobile {
-                display: flex;
-                align-items: center;
-                justify-content: center;
+            .mobile-control-menu {
+                display: none;
             }
         }
     </style>
@@ -595,23 +612,24 @@
     <button class="control-toggle mobile" id="controlToggle" style="display: none;">⚙️</button>
 
     <!-- 移动端统计栏 -->
-    <div class="stats-bar mobile" id="mobileStatsBar" style="display: none;">
-        <div class="stat-item mobile">
-            <div class="stat-label mobile">存活细胞</div>
-            <div class="stat-value mobile" id="mobileAliveCells">0</div>
+    <div class="mobile-stats-bar" id="mobileStatsBar">
+        <div class="mobile-stat-item">
+            <span class="mobile-stat-label">存活</span>
+            <span class="mobile-stat-value" id="mobileAliveCells">0</span>
         </div>
-        <div class="stat-item mobile">
-            <div class="stat-label mobile">细胞路径面积</div>
-            <div class="stat-value mobile" id="mobileCellArea">0</div>
+        <div class="mobile-stat-item">
+            <span class="mobile-stat-label">面积</span>
+            <span class="mobile-stat-value" id="mobileCellArea">0</span>
         </div>
-        <div class="stat-item mobile">
-            <div class="stat-label mobile">代数</div>
-            <div class="stat-value mobile" id="mobileGeneration">0</div>
+        <div class="mobile-stat-item">
+            <span class="mobile-stat-label">代数</span>
+            <span class="mobile-stat-value" id="mobileGeneration">0</span>
         </div>
-        <div class="stat-item mobile">
-            <div class="stat-label mobile">状态</div>
-            <div class="stat-value mobile" id="mobileStatus">已暂停</div>
+        <div class="mobile-stat-item">
+            <span class="mobile-stat-label">状态</span>
+            <span class="mobile-stat-value" id="mobileStatus">已暂停</span>
         </div>
+        <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
     </div>
 
     <div class="control-panel">
@@ -789,9 +807,10 @@
                 this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
                 this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
                 
-                // Control toggle for mobile - only add listener on mobile devices
-                if (window.innerWidth <= 768) {
-                    document.getElementById('controlToggle').addEventListener('click', this.toggleMobileControl.bind(this));
+                // Control toggle for mobile
+                const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+                if (mobileMenuToggle) {
+                    mobileMenuToggle.addEventListener('click', this.toggleMobileControl.bind(this));
                 }
                 
                 // Desktop control buttons
@@ -862,6 +881,12 @@
                 const mobileControlMenu = document.getElementById('mobileControlMenu');
                 if (mobileControlMenu) {
                     mobileControlMenu.classList.toggle('show');
+                    // 防止菜单遮挡点击区域
+                    if (mobileControlMenu.classList.contains('show')) {
+                        document.body.style.overflow = 'hidden';
+                    } else {
+                        document.body.style.overflow = 'auto';
+                    }
                 }
             }
 
