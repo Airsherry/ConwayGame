@@ -5,7 +5,7 @@
 
 ## 在线演示
 
-https://github.com/Airsherry/ConwayGame/life-game.html
+https://airsherry.github.io/ConwayGame/life-game.html
 
 ## 功能
 
