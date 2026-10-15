@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>康威生命游戏 - Conway's Game of Life</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: rgba(15, 15, 25, 0.8);
+            --bg-glass: rgba(20, 20, 35, 0.6);
+            --text-primary: #ffffff;
+            --text-secondary: #a8b2d1;
+            --grid-color: rgba(100, 120, 150, 0.15);
+            --cell-color: #00ff88;
+            --cell-glow: #00ff88;
+            --accent-color: #ff006e;
+            --accent-glow: #ff006e;
+            --border-radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Fira Code', 'JetBrains Mono', 'Monaco', monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            position: relative;
+            height: 100vh;
+            background: 
+                radial-gradient(ellipse at center top, rgba(0, 20, 40, 0.3) 0%, transparent 50%),
+                radial-gradient(ellipse at center bottom, rgba(40, 0, 20, 0.2) 0%, transparent 50%),
+                var(--bg-primary);
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+            background: transparent;
+        }
+
+        .stats-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 12px 24px;
+            display: flex;
+            gap: 32px;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.6s ease-out;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            min-width: 260px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            animation: slideInRight 0.6s ease-out;
+        }
+
+        .control-button {
+            width: 100%;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 136, 0.05));
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .control-button:hover {
+            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.1));
+            border-color: var(--cell-glow);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .control-button:hover:before {
+            left: 100%;
+        }
+
+        .control-button:active {
+            transform: translateY(0);
+        }
+
+        .control-button.edit-mode {
+            background: linear-gradient(135deg, rgba(255, 0, 110, 0.2), rgba(255, 0, 110, 0.1));
+            border-color: var(--accent-glow);
+        }
+
+        .speed-control {
+            margin-bottom: 12px;
+        }
+
+        .speed-label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .speed-slider {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .speed-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--cell-color);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .speed-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
+        }
+
+        .speed-value {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .separator {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 16px 0;
+            border: none;
+        }
+
+        .rules-button {
+            background: linear-gradient(135deg, rgba(100, 120, 150, 0.2), rgba(100, 120, 150, 0.1));
+            border-color: rgba(100, 120, 150, 0.3);
+        }
+
+        .rules-button:hover {
+            background: linear-gradient(135deg, rgba(100, 120, 150, 0.3), rgba(100, 120, 150, 0.2));
+            border-color: rgba(150, 170, 200, 0.5);
+        }
+
+        .examples-dropdown {
+            position: relative;
+        }
+
+        .examples-button {
+            width: 100%;
+            text-align: left;
+            padding-right: 24px;
+        }
+
+        .examples-button:after {
+            content: '▼';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .examples-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-top: 8px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .examples-menu.show {
+            display: block;
+            animation: dropDown 0.3s ease-out;
+        }
+
+        .example-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .example-item:last-child {
+            border-bottom: none;
+        }
+
+        .example-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal.show {
+            display: flex;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .close-button {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.3s ease;
+        }
+
+        .close-button:hover {
+            color: var(--text-primary);
+        }
+
+        .rules-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .rules-list li {
+            margin-bottom: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid var(--cell-color);
+        }
+
+        .rule-number {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .rule-text {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes dropDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-bar {
+                flex-direction: column;
+                gap: 16px;
+                padding: 12px 16px;
+                top: 10px;
+            }
+
+            .control-panel {
+                top: auto;
+                bottom: 10px;
+                right: 10px;
+                left: 10px;
+                min-width: auto;
+            }
+
+            .modal-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-label">存活细胞</div>
+            <div class="stat-value" id="aliveCells">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">细胞路径面积</div>
+            <div class="stat-value" id="cellArea">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">代数</div>
+            <div class="stat-value" id="generation">0</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">状态</div>
+            <div class="stat-value" id="status">已暂停</div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <button class="control-button" id="playPauseBtn">
+            <span id="playPauseText">开始游戏</span>
+        </button>
+        
+        <button class="control-button" id="editModeBtn">
+            进入编辑模式
+        </button>
+
+        <div class="speed-control">
+            <label class="speed-label">动画速度</label>
+            <input type="range" class="speed-slider" id="speedSlider" min="1" max="60" value="10">
+            <div class="speed-value" id="speedValue">10 代/秒</div>
+        </div>
+
+        <button class="control-button rules-button" id="rulesBtn">
+            游戏规则
+        </button>
+
+        <div class="examples-dropdown">
+            <button class="control-button examples-button" id="examplesBtn">
+                示例动画
+            </button>
+            <div class="examples-menu" id="examplesMenu">
+                <div class="example-item" data-pattern="glider">滑翔机</div>
+                <div class="example-item" data-pattern="blinker">闪烁器</div>
+                <div class="example-item" data-pattern="toad">蟾蜍</div>
+                <div class="example-item" data-pattern="beacon">信标</div>
+                <div class="example-item" data-pattern="pulsar">脉冲星</div>
+                <div class="example-item" data-pattern="gosper">高斯帕滑翔机枪</div>
+            </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <button class="control-button" id="clearBtn">
+            清空
+        </button>
+        
+        <button class="control-button" id="randomBtn">
+            随机填充
+        </button>
+    </div>
+
+    <div class="modal" id="rulesModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">游戏规则</h2>
+                <button class="close-button" id="closeModal">×</button>
+            </div>
+            <ul class="rules-list">
+                <li>
+                    <div class="rule-number">规则 1</div>
+                    <div class="rule-text">活细胞周围活邻居少于 2 个：死亡（孤独）</div>
+                </li>
+                <li>
+                    <div class="rule-number">规则 2</div>
+                    <div class="rule-text">活细胞周围有 2 或 3 个活邻居：继续存活</div>
+                </li>
+                <li>
+                    <div class="rule-number">规则 3</div>
+                    <div class="rule-text">活细胞周围超过 3 个活邻居：死亡（拥挤）</div>
+                </li>
+                <li>
+                    <div class="rule-number">规则 4</div>
+                    <div class="rule-text">死细胞周围恰好有 3 个活邻居：繁殖，变成活细胞</div>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        class GameOfLife {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.cellSize = 20;
+                this.grid = [];
+                this.nextGrid = [];
+                this.isRunning = false;
+                this.isEditing = false;
+                this.generation = 0;
+                this.fps = 10;
+                this.lastUpdate = 0;
+                this.isMouseDown = false;
+                this.lastCellPos = null;
+                
+                this.setupCanvas();
+                this.initializeGrid();
+                this.setupEventListeners();
+                this.draw();
+                this.updateStats();
+            }
+
+            setupCanvas() {
+                const resize = () => {
+                    const dpr = window.devicePixelRatio || 1;
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                    this.canvas.style.width = window.innerWidth + 'px';
+                    this.canvas.style.height = window.innerHeight + 'px';
+                    
+                    this.cols = Math.floor(this.canvas.width / this.cellSize);
+                    this.rows = Math.floor(this.canvas.height / this.cellSize);
+                    
+                    this.initializeGrid();
+                    this.draw();
+                };
+                
+                window.addEventListener('resize', resize);
+                resize();
+            }
+
+            initializeGrid() {
+                this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
+                this.nextGrid = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
+            }
+
+            setupEventListeners() {
+                // Canvas events
+                this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
+                this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
+                this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
+                this.canvas.addEventListener('mouseleave', this.handleMouseUp.bind(this));
+                
+                // Touch events
+                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
+                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
+                this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
+                
+                // Control buttons
+                document.getElementById('playPauseBtn').addEventListener('click', this.togglePlayPause.bind(this));
+                document.getElementById('editModeBtn').addEventListener('click', this.toggleEditMode.bind(this));
+                document.getElementById('clearBtn').addEventListener('click', this.clearGrid.bind(this));
+                document.getElementById('randomBtn').addEventListener('click', this.randomFill.bind(this));
+                document.getElementById('rulesBtn').addEventListener('click', this.showRules.bind(this));
+                document.getElementById('closeModal').addEventListener('click', this.hideRules.bind(this));
+                
+                // Speed control
+                const speedSlider = document.getElementById('speedSlider');
+                speedSlider.addEventListener('input', (e) => {
+                    this.fps = parseInt(e.target.value);
+                    document.getElementById('speedValue').textContent = `${this.fps} 代/秒`;
+                });
+                
+                // Examples dropdown
+                const examplesBtn = document.getElementById('examplesBtn');
+                const examplesMenu = document.getElementById('examplesMenu');
+                
+                examplesBtn.addEventListener('click', () => {
+                    examplesMenu.classList.toggle('show');
+                });
+                
+                document.querySelectorAll('.example-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const pattern = item.dataset.pattern;
+                        this.loadPattern(pattern);
+                        examplesMenu.classList.remove('show');
+                    });
+                });
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!examplesBtn.contains(e.target) && !examplesMenu.contains(e.target)) {
+                        examplesMenu.classList.remove('show');
+                    }
+                });
+            }
+
+            handleMouseDown(e) {
+                if (this.isEditing) {
+                    this.isMouseDown = true;
+                    const cellPos = this.getCellPosition(e);
+                    this.toggleCell(cellPos.row, cellPos.col);
+                }
+            }
+
+            handleMouseMove(e) {
+                if (this.isEditing && this.isMouseDown) {
+                    const cellPos = this.getCellPosition(e);
+                    if (this.lastCellPos && 
+                        (this.lastCellPos.row !== cellPos.row || this.lastCellPos.col !== cellPos.col)) {
+                        this.toggleCell(cellPos.row, cellPos.col);
+                        this.lastCellPos = cellPos;
+                    }
+                }
+            }
+
+            handleMouseUp() {
+                this.isMouseDown = false;
+                this.lastCellPos = null;
+            }
+
+            handleTouchStart(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousedown', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                this.canvas.dispatchEvent(mouseEvent);
+            }
+
+            handleTouchMove(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent('mousemove', {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                this.canvas.dispatchEvent(mouseEvent);
+            }
+
+            handleTouchEnd(e) {
+                e.preventDefault();
+                const mouseEvent = new MouseEvent('mouseup', {});
+                this.canvas.dispatchEvent(mouseEvent);
+            }
+
+            getCellPosition(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const col = Math.floor(x / this.cellSize);
+                const row = Math.floor(y / this.cellSize);
+                return { row, col };
+            }
+
+            toggleCell(row, col) {
+                if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
+                    this.grid[row][col] = this.grid[row][col] ? 0 : 1;
+                    this.draw();
+                    this.updateStats();
+                }
+            }
+
+            togglePlayPause() {
+                this.isRunning = !this.isRunning;
+                this.isEditing = false;
+                
+                const playPauseBtn = document.getElementById('playPauseBtn');
+                const playPauseText = document.getElementById('playPauseText');
+                const editModeBtn = document.getElementById('editModeBtn');
+                
+                if (this.isRunning) {
+                    playPauseText.textContent = '暂停';
+                    editModeBtn.textContent = '进入编辑模式';
+                    editModeBtn.classList.remove('edit-mode');
+                    this.updateStatus('运行中');
+                    this.animate();
+                } else {
+                    playPauseText.textContent = '开始游戏';
+                    this.updateStatus('已暂停');
+                }
+            }
+
+            toggleEditMode() {
+                this.isEditing = !this.isEditing;
+                this.isRunning = false;
+                
+                const editModeBtn = document.getElementById('editModeBtn');
+                const playPauseText = document.getElementById('playPauseText');
+                const playPauseBtn = document.getElementById('playPauseBtn');
+                
+                if (this.isEditing) {
+                    editModeBtn.textContent = '退出编辑模式';
+                    editModeBtn.classList.add('edit-mode');
+                    playPauseText.textContent = '开始游戏';
+                    this.updateStatus('编辑中');
+                    this.canvas.style.cursor = 'crosshair';
+                } else {
+                    editModeBtn.textContent = '进入编辑模式';
+                    editModeBtn.classList.remove('edit-mode');
+                    this.updateStatus('已暂停');
+                    this.canvas.style.cursor = 'default';
+                }
+            }
+
+            clearGrid() {
+                this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
+                this.generation = 0;
+                this.draw();
+                this.updateStats();
+                
+                if (this.isRunning) {
+                    this.togglePlayPause();
+                }
+            }
+
+            randomFill() {
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        this.grid[row][col] = Math.random() < 0.3 ? 1 : 0;
+                    }
+                }
+                this.draw();
+                this.updateStats();
+            }
+
+            showRules() {
+                document.getElementById('rulesModal').classList.add('show');
+            }
+
+            hideRules() {
+                document.getElementById('rulesModal').classList.remove('show');
+            }
+
+            updateStatus(status) {
+                document.getElementById('status').textContent = status;
+            }
+
+            updateStats() {
+                const aliveCells = this.countAliveCells();
+                const cellArea = this.calculateCellArea();
+                
+                document.getElementById('aliveCells').textContent = aliveCells;
+                document.getElementById('cellArea').textContent = cellArea;
+                document.getElementById('generation').textContent = this.generation;
+                
+                if (aliveCells === 0 && this.isRunning) {
+                    this.isRunning = false;
+                    document.getElementById('playPauseText').textContent = '开始游戏';
+                    this.updateStatus('全部死亡');
+                    
+                    // Pause the game
+                    const playPauseBtn = document.getElementById('playPauseBtn');
+                    playPauseBtn.click();
+                }
+            }
+
+            countAliveCells() {
+                let count = 0;
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        count += this.grid[row][col];
+                    }
+                }
+                return count;
+            }
+
+            calculateCellArea() {
+                const aliveCells = [];
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        if (this.grid[row][col] === 1) {
+                            aliveCells.push({ row, col });
+                        }
+                    }
+                }
+                
+                if (aliveCells.length === 0) return 0;
+                
+                const rows = aliveCells.map(cell => cell.row);
+                const cols = aliveCells.map(cell => cell.col);
+                
+                const minRow = Math.min(...rows);
+                const maxRow = Math.max(...rows);
+                const minCol = Math.min(...cols);
+                const maxCol = Math.max(...cols);
+                
+                return (maxRow - minRow + 1) * (maxCol - minCol + 1);
+            }
+
+            countNeighbors(row, col) {
+                let count = 0;
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        if (i === 0 && j === 0) continue;
+                        
+                        const newRow = row + i;
+                        const newCol = col + j;
+                        
+                        if (newRow >= 0 && newRow < this.rows && newCol >= 0 && newCol < this.cols) {
+                            count += this.grid[newRow][newCol];
+                        }
+                    }
+                }
+                return count;
+            }
+
+            updateGrid() {
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        const neighbors = this.countNeighbors(row, col);
+                        const currentCell = this.grid[row][col];
+                        
+                        if (currentCell === 1) {
+                            // 活细胞
+                            if (neighbors < 2 || neighbors > 3) {
+                                this.nextGrid[row][col] = 0; // 死亡
+                            } else {
+                                this.nextGrid[row][col] = 1; // 存活
+                            }
+                        } else {
+                            // 死细胞
+                            if (neighbors === 3) {
+                                this.nextGrid[row][col] = 1; // 繁殖
+                            } else {
+                                this.nextGrid[row][col] = 0; // 保持死亡
+                            }
+                        }
+                    }
+                }
+                
+                // 交换网格
+                [this.grid, this.nextGrid] = [this.nextGrid, this.grid];
+                this.generation++;
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // 绘制网格线
+                this.ctx.strokeStyle = 'rgba(100, 120, 150, 0.15)';
+                this.ctx.lineWidth = 0.5;
+                
+                for (let i = 0; i <= this.rows; i++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, i * this.cellSize);
+                    this.ctx.lineTo(this.canvas.width, i * this.cellSize);
+                    this.ctx.stroke();
+                }
+                
+                for (let i = 0; i <= this.cols; i++) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(i * this.cellSize, 0);
+                    this.ctx.lineTo(i * this.cellSize, this.canvas.height);
+                    this.ctx.stroke();
+                }
+                
+                // 绘制活细胞
+                for (let row = 0; row < this.rows; row++) {
+                    for (let col = 0; col < this.cols; col++) {
+                        if (this.grid[row][col] === 1) {
+                            const x = col * this.cellSize;
+                            const y = row * this.cellSize;
+                            
+                            // 创建发光效果
+                            const gradient = this.ctx.createRadialGradient(
+                                x + this.cellSize / 2, y + this.cellSize / 2, 0,
+                                x + this.cellSize / 2, y + this.cellSize / 2, this.cellSize / 2
+                            );
+                            gradient.addColorStop(0, 'rgba(0, 255, 136, 0.9)');
+                            gradient.addColorStop(0.5, 'rgba(0, 255, 136, 0.6)');
+                            gradient.addColorStop(1, 'rgba(0, 255, 136, 0.2)');
+                            
+                            this.ctx.fillStyle = gradient;
+                            this.ctx.fillRect(x + 1, y + 1, this.cellSize - 2, this.cellSize - 2);
+                            
+                            // 添加发光边框
+                            this.ctx.shadowColor = '#00ff88';
+                            this.ctx.shadowBlur = 10;
+                            this.ctx.strokeStyle = 'rgba(0, 255, 136, 0.8)';
+                            this.ctx.lineWidth = 1;
+                            this.ctx.strokeRect(x + 1, y + 1, this.cellSize - 2, this.cellSize - 2);
+                            this.ctx.shadowBlur = 0;
+                        }
+                    }
+                }
+            }
+
+            animate(currentTime = 0) {
+                if (!this.isRunning) return;
+                
+                const deltaTime = currentTime - this.lastUpdate;
+                const frameInterval = 1000 / this.fps;
+                
+                if (deltaTime >= frameInterval) {
+                    this.updateGrid();
+                    this.draw();
+                    this.updateStats();
+                    this.lastUpdate = currentTime;
+                }
+                
+                requestAnimationFrame((time) => this.animate(time));
+            }
+
+            loadPattern(patternName) {
+                this.clearGrid();
+                const centerRow = Math.floor(this.rows / 2);
+                const centerCol = Math.floor(this.cols / 2);
+                
+                const patterns = {
+                    glider: [
+                        [0, 1, 0],
+                        [0, 0, 1],
+                        [1, 1, 1]
+                    ],
+                    blinker: [
+                        [1, 1, 1]
+                    ],
+                    toad: [
+                        [0, 1, 1, 1],
+                        [1, 1, 1, 0]
+                    ],
+                    beacon: [
+                        [1, 1, 0, 0],
+                        [1, 0, 0, 0],
+                        [0, 0, 0, 1],
+                        [0, 0, 1, 1]
+                    ],
+                    pulsar: [
+                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0]
+                    ],
+                    gosper: [
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+                        [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    ]
+                };
+                
+                const pattern = patterns[patternName];
+                if (pattern) {
+                    const patternHeight = pattern.length;
+                    const patternWidth = pattern[0].length;
+                    
+                    const startRow = centerRow - Math.floor(patternHeight / 2);
+                    const startCol = centerCol - Math.floor(patternWidth / 2);
+                    
+                    for (let row = 0; row < patternHeight; row++) {
+                        for (let col = 0; col < patternWidth; col++) {
+                            const gridRow = startRow + row;
+                            const gridCol = startCol + col;
+                            
+                            if (gridRow >= 0 && gridRow < this.rows && 
+                                gridCol >= 0 && gridCol < this.cols) {
+                                this.grid[gridRow][gridCol] = pattern[row][col];
+                            }
+                        }
+                    }
+                    
+                    this.draw();
+                    this.updateStats();
+                    
+                    // 自动开始游戏
+                    if (!this.isRunning) {
+                        this.togglePlayPause();
+                    }
+                }
+            }
+        }
+
+        // 初始化游戏
+        document.addEventListener('DOMContentLoaded', () => {
+            new GameOfLife();
+        });
+    </script>
+</body>
+</html>
