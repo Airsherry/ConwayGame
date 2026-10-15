@@ -5,7 +5,7 @@
 
 ## 在线演示
 
-https你的用户名.github.io仓库名life-game.html
+https://github.com/Airsherry/ConwayGame/life-game.html
 
 ## 功能
 
