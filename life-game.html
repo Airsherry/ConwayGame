@@ -1,594 +1,622 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>康威生命游戏 - Conway's Game of Life</title>
-    <style>
-        :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: rgba(15, 15, 25, 0.8);
-            --bg-glass: rgba(20, 20, 35, 0.6);
-            --text-primary: #ffffff;
-            --text-secondary: #a8b2d1;
-            --grid-color: rgba(100, 120, 150, 0.15);
-            --cell-color: #00ff88;
-            --cell-glow: #00ff88;
-            --accent-color: #ff006e;
-            --accent-glow: #ff006e;
-            --border-radius: 12px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>康威生命游戏 · Conway's Game of Life</title>
+<style>
+    :root {
+        --bg-primary: #0a0a0f;
+        --bg-secondary: rgba(15, 15, 25, 0.95);
+        --bg-glass: rgba(20, 20, 35, 0.72);
+        --text-primary: #ffffff;
+        --text-secondary: #a8b2d1;
+        --cell-color: #00ff88;
+        --cell-glow: #00ff88;
+        --accent-color: #ff006e;
+        --accent-glow: #ff006e;
+        --border-radius: 12px;
+    }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
 
-        body {
-            font-family: 'Fira Code', 'JetBrains Mono', 'Monaco', monospace;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            overflow: hidden;
-            position: relative;
-            height: 100vh;
-            background: 
-                radial-gradient(ellipse at center top, rgba(0, 20, 40, 0.3) 0%, transparent 50%),
-                radial-gradient(ellipse at center bottom, rgba(40, 0, 20, 0.2) 0%, transparent 50%),
-                var(--bg-primary);
-        }
+    html, body {
+        width: 100%;
+        height: 100%;
+    }
 
-        #gameCanvas {
-            display: block;
-            cursor: crosshair;
-            background: transparent;
-        }
+    body {
+        font-family: 'Fira Code', 'JetBrains Mono', 'Monaco', monospace;
+        background:
+            radial-gradient(ellipse at center top, rgba(0, 20, 40, 0.3) 0%, transparent 50%),
+            radial-gradient(ellipse at center bottom, rgba(40, 0, 20, 0.2) 0%, transparent 50%),
+            var(--bg-primary);
+        color: var(--text-primary);
+        overflow: hidden;
+        position: relative;
+        overscroll-behavior: none;
+    }
 
-        .stats-bar {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--border-radius);
-            padding: 12px 24px;
-            display: flex;
-            gap: 32px;
-            align-items: center;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            animation: slideDown 0.6s ease-out;
-        }
+    /* ============ 画布 ============ */
+    #gameCanvas {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: transparent;
+        cursor: crosshair;
+        touch-action: none;
+    }
 
-        .stats-bar.mobile {
-            flex-direction: row;
-            gap: 16px;
-            padding: 8px 16px;
-            top: 10px;
-        }
+    /* ============ 桌面端统计栏（顶部居中） ============ */
+    .stats-bar {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-glass);
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--border-radius);
+        padding: 12px 24px;
+        display: flex;
+        gap: 32px;
+        align-items: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        animation: slideDown 0.6s ease-out;
+        z-index: 100;
+    }
 
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
 
-        .stat-item.mobile {
-            flex-direction: row;
-            gap: 4px;
-            align-items: center;
-        }
+    .stat-label {
+        font-size: 11px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        opacity: 0.8;
+        white-space: nowrap;
+    }
 
-        .stat-item.mobile .stat-value {
-            margin-left: 4px;
-            font-size: 14px;
-        }
+    .stat-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+    }
 
-        .stat-label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.8;
-        }
+    /* ============ 桌面端控制面板（右上角） ============ */
+    .control-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: var(--bg-glass);
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--border-radius);
+        padding: 20px;
+        min-width: 260px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        animation: slideInRight 0.6s ease-out;
+        z-index: 100;
+    }
 
-        .stat-value {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
-        }
+    .control-button {
+        width: 100%;
+        padding: 10px 16px;
+        margin-bottom: 12px;
+        background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 136, 0.05));
+        border: 1px solid rgba(0, 255, 136, 0.3);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
 
-        .stat-label.mobile {
-            font-size: 10px;
-        }
+    .control-button:last-child {
+        margin-bottom: 0;
+    }
 
-        .stat-value.mobile {
-            font-size: 14px;
-        }
+    .control-button:hover {
+        background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.1));
+        border-color: var(--cell-glow);
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        transform: translateY(-2px);
+    }
 
+    .control-button:active {
+        transform: translateY(0);
+    }
+
+    .control-button.edit-mode {
+        background: linear-gradient(135deg, rgba(255, 0, 110, 0.2), rgba(255, 0, 110, 0.1));
+        border-color: var(--accent-glow);
+    }
+
+    .speed-control {
+        margin-bottom: 12px;
+    }
+
+    .speed-label {
+        display: block;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .speed-slider {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+    }
+
+    .speed-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: var(--cell-color);
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        transition: all 0.3s ease;
+    }
+
+    .speed-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: var(--cell-color);
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .speed-value {
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+
+    .separator {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 16px 0;
+        border: none;
+    }
+
+    .rules-button {
+        background: linear-gradient(135deg, rgba(100, 120, 150, 0.2), rgba(100, 120, 150, 0.1));
+        border-color: rgba(100, 120, 150, 0.3);
+    }
+
+    .rules-button:hover {
+        background: linear-gradient(135deg, rgba(100, 120, 150, 0.3), rgba(100, 120, 150, 0.2));
+        border-color: rgba(150, 170, 200, 0.5);
+    }
+
+    /* ============ 示例动画下拉 ============ */
+    .examples-dropdown {
+        position: relative;
+    }
+
+    .examples-button {
+        width: 100%;
+        text-align: left;
+        padding-right: 24px;
+    }
+
+    .examples-button:after {
+        content: '▼';
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        color: var(--text-secondary);
+    }
+
+    .examples-menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--bg-secondary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        margin-top: 8px;
+        z-index: 120;
+        display: none;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .examples-menu.show {
+        display: block;
+        animation: dropDown 0.3s ease-out;
+    }
+
+    .example-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 14px;
+    }
+
+    .example-item:last-child {
+        border-bottom: none;
+    }
+
+    .example-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* ============ 规则弹窗 ============ */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 2000;
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        padding: 16px;
+    }
+
+    .modal.show {
+        display: flex;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-content {
+        background: var(--bg-glass);
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--border-radius);
+        padding: 32px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .modal-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 24px;
+        cursor: pointer;
+        padding: 4px 8px;
+        transition: color 0.3s ease;
+        line-height: 1;
+    }
+
+    .close-button:hover {
+        color: var(--text-primary);
+    }
+
+    .rules-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .rules-list li {
+        margin-bottom: 16px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border-left: 3px solid var(--cell-color);
+    }
+
+    .rules-list li:last-child {
+        margin-bottom: 0;
+    }
+
+    .rule-number {
+        font-size: 12px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+    }
+
+    .rule-text {
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text-primary);
+    }
+
+    /* ============ 提示条 ============ */
+    .toast {
+        position: fixed;
+        left: 50%;
+        bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+        transform: translate(-50%, 20px);
+        background: rgba(255, 0, 110, 0.16);
+        border: 1px solid rgba(255, 0, 110, 0.5);
+        color: var(--text-primary);
+        padding: 10px 20px;
+        border-radius: 24px;
+        font-size: 13px;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(12px);
+        z-index: 3000;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+
+    /* ============ 动画 ============ */
+    @keyframes slideDown {
+        from { opacity: 0; transform: translate(-50%, -20px); }
+        to   { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    @keyframes slideInRight {
+        from { opacity: 0; transform: translateX(20px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes dropDown {
+        from { opacity: 0; transform: translateY(-10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ================================================================
+       移动端组件：桌面端一律隐藏
+       ================================================================ */
+    .mobile-top-bar,
+    .mobile-control-menu,
+    .menu-overlay {
+        display: none;
+    }
+
+    /* ================================================================
+       移动端（<= 768px）：桌面组件隐藏，移动组件启用
+       ================================================================ */
+    @media (max-width: 768px) {
+        .stats-bar,
         .control-panel {
-            position: absolute;
-            top: 20px;
-            right: 20px;
+            display: none !important;
+        }
+
+        /* --- 顶部统计条：扁而长 --- */
+        .mobile-top-bar {
+            display: flex;
+            position: fixed;
+            top: calc(8px + env(safe-area-inset-top, 0px));
+            left: 8px;
+            right: 8px;
+            height: 44px;
+            padding: 0 6px 0 14px;
+            align-items: center;
+            gap: 8px;
             background: var(--bg-glass);
+            -webkit-backdrop-filter: blur(20px);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--border-radius);
-            padding: 20px;
-            min-width: 260px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            animation: slideInRight 0.6s ease-out;
-            display: block;
+            border-radius: 22px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+            z-index: 1000;
         }
 
-        .control-button {
-            width: 100%;
-            padding: 10px 16px;
-            margin-bottom: 12px;
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 136, 0.05));
-            border: 1px solid rgba(0, 255, 136, 0.3);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-family: inherit;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .control-button.mobile {
-            padding: 8px 12px;
-            margin-bottom: 8px;
-            font-size: 12px;
-        }
-
-        .control-toggle {
-            width: 36px;
-            height: 36px;
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid rgba(0, 255, 136, 0.3);
-            border-radius: 50%;
-            color: var(--text-primary);
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: none;
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-        }
-
-        .control-toggle:hover {
-            background: rgba(0, 255, 136, 0.2);
-            transform: translateY(-50%) scale(1.1);
-        }
-
-        .control-toggle.mobile {
+        .m-stats {
             display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-width: 0;
         }
 
-        .control-button:before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.2), transparent);
-            transition: left 0.5s;
+        .m-stat {
+            display: flex;
+            flex-direction: row;
+            align-items: baseline;
+            gap: 4px;
+            white-space: nowrap;
         }
 
-        .control-button:hover {
-            background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.1));
-            border-color: var(--cell-glow);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .control-button:hover:before {
-            left: 100%;
-        }
-
-        .control-button:active {
-            transform: translateY(0);
-        }
-
-        .control-button.edit-mode {
-            background: linear-gradient(135deg, rgba(255, 0, 110, 0.2), rgba(255, 0, 110, 0.1));
-            border-color: var(--accent-glow);
-        }
-
-        .speed-control {
-            margin-bottom: 12px;
-        }
-
-        .speed-label {
-            display: block;
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .speed-slider {
-            width: 100%;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            outline: none;
-            -webkit-appearance: none;
-            cursor: pointer;
-        }
-
-        .speed-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            background: var(--cell-color);
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-            transition: all 0.3s ease;
-        }
-
-        .speed-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.8);
-        }
-
-        .speed-value {
-            text-align: center;
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
-
-        .separator {
-            height: 1px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 16px 0;
-            border: none;
-        }
-
-        .rules-button {
-            background: linear-gradient(135deg, rgba(100, 120, 150, 0.2), rgba(100, 120, 150, 0.1));
-            border-color: rgba(100, 120, 150, 0.3);
-        }
-
-        .rules-button:hover {
-            background: linear-gradient(135deg, rgba(100, 120, 150, 0.3), rgba(100, 120, 150, 0.2));
-            border-color: rgba(150, 170, 200, 0.5);
-        }
-
-        .examples-dropdown {
-            position: relative;
-        }
-
-        .examples-button {
-            width: 100%;
-            text-align: left;
-            padding-right: 24px;
-        }
-
-        .examples-button:after {
-            content: '▼';
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
+        .m-stat-label {
             font-size: 10px;
             color: var(--text-secondary);
-        }
-
-        .examples-menu {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: var(--bg-secondary);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            margin-top: 8px;
-            z-index: 1000;
-            display: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .examples-menu.show {
-            display: block;
-            animation: dropDown 0.3s ease-out;
-        }
-
-        .example-item {
-            padding: 10px 16px;
-            cursor: pointer;
-            transition: background 0.2s ease;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .example-item:last-child {
-            border-bottom: none;
-        }
-
-        .example-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            backdrop-filter: blur(10px);
-        }
-
-        .modal.show {
-            display: flex;
-            animation: fadeIn 0.3s ease-out;
-        }
-
-        .modal-content {
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--border-radius);
-            padding: 32px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            animation: slideUp 0.3s ease-out;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
-        .modal-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .close-button {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 24px;
-            cursor: pointer;
-            padding: 4px;
-            transition: color 0.3s ease;
-        }
-
-        .close-button:hover {
-            color: var(--text-primary);
-        }
-
-        .rules-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .rules-list li {
-            margin-bottom: 16px;
-            padding: 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            border-left: 3px solid var(--cell-color);
-        }
-
-        .rule-number {
-            font-size: 12px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-
-        .rule-text {
-            font-size: 14px;
-            line-height: 1.6;
-            color: var(--text-primary);
-        }
-
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translate(-50%, -20px);
-            }
-            to {
-                opacity: 1;
-                transform: translate(-50%, 0);
-            }
-        }
-
-        @keyframes slideInRight {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes dropDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* 移动端统计栏 */
-        .mobile-stats-bar {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--border-radius);
-            padding: 8px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 1000;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .mobile-stat-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .mobile-stat-label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .mobile-stat-value {
-            font-size: 14px;
+        .m-stat-value {
+            font-size: 13px;
             font-weight: 600;
             color: var(--text-primary);
-            min-width: 25px;
-            text-align: center;
+            text-shadow: 0 0 8px rgba(0, 255, 136, 0.35);
         }
 
-        .mobile-menu-toggle {
-            width: 32px;
-            height: 32px;
+        #mobileMenuToggle {
+            width: 34px;
+            height: 34px;
+            flex: 0 0 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: rgba(0, 255, 136, 0.1);
             border: 1px solid rgba(0, 255, 136, 0.3);
             border-radius: 50%;
             color: var(--text-primary);
             font-size: 16px;
+            font-family: inherit;
+            line-height: 1;
             cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            transition: background 0.2s ease, transform 0.2s ease;
         }
 
-        .mobile-menu-toggle:hover {
-            background: rgba(0, 255, 136, 0.2);
-            transform: scale(1.1);
+        #mobileMenuToggle:active {
+            transform: scale(0.92);
+            background: rgba(0, 255, 136, 0.25);
         }
 
-        /* 移动端控制菜单 */
-        .mobile-control-menu {
+        /* --- 遮罩 --- */
+        .menu-overlay {
+            display: block;
             position: fixed;
-            bottom: 0;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1050;
+        }
+
+        .menu-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* --- 底部控制面板 --- */
+        .mobile-control-menu {
+            display: block;
+            position: fixed;
             left: 0;
             right: 0;
+            bottom: 0;
+            padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px));
             background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: var(--border-radius) var(--border-radius) 0 0;
-            padding: 20px;
-            transform: translateY(100%);
-            transition: transform 0.3s ease;
-            z-index: 999;
-            max-height: 70vh;
+            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+            max-height: 78vh;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            transform: translateY(110%);
+            transition: transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+            z-index: 1100;
         }
 
         .mobile-control-menu.show {
             transform: translateY(0);
         }
 
-        @media (max-width: 768px) {
-            .stats-bar {
-                display: none;
-            }
-
-            .control-panel {
-                display: none;
-            }
-
-            .mobile-control-menu {
-                display: none;
-            }
-
-            .mobile-control-menu.show {
-                display: block;
-            }
-
-            .mobile-stats-bar {
-                display: flex;
-            }
-
-            .modal-content {
-                padding: 20px;
-            }
+        .sheet-handle {
+            width: 40px;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.25);
+            margin: 0 auto 14px;
         }
 
-        @media (min-width: 769px) {
-            .stats-bar {
-                display: flex;
-            }
-            
-            .control-panel {
-                display: block !important;
-            }
-
-            .mobile-stats-bar {
-                display: none;
-            }
-
-            .mobile-control-menu {
-                display: none;
-            }
+        .sheet-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
         }
-    </style>
+
+        .mobile-control-menu .control-button {
+            padding: 13px 16px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .mobile-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .mobile-actions .control-button {
+            margin-bottom: 0;
+        }
+
+        .mobile-control-menu .examples-menu {
+            position: static;
+            margin-top: 10px;
+        }
+
+        .modal-content {
+            padding: 20px;
+            width: 92%;
+        }
+
+        .modal-title {
+            font-size: 20px;
+        }
+
+        .toast {
+            font-size: 12px;
+            padding: 9px 16px;
+            max-width: 90vw;
+            white-space: normal;
+            text-align: center;
+        }
+    }
+</style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    
+
+    <!-- ==================== 桌面端统计栏 ==================== -->
     <div class="stats-bar">
         <div class="stat-item">
             <div class="stat-label">存活细胞</div>
@@ -608,41 +636,18 @@
         </div>
     </div>
 
-    <!-- 移动端控制切换按钮 -->
-    <button class="control-toggle mobile" id="controlToggle" style="display: none;">⚙️</button>
-
-    <!-- 移动端统计栏 -->
-    <div class="mobile-stats-bar" id="mobileStatsBar">
-        <div class="mobile-stat-item">
-            <span class="mobile-stat-label">存活</span>
-            <span class="mobile-stat-value" id="mobileAliveCells">0</span>
-        </div>
-        <div class="mobile-stat-item">
-            <span class="mobile-stat-label">面积</span>
-            <span class="mobile-stat-value" id="mobileCellArea">0</span>
-        </div>
-        <div class="mobile-stat-item">
-            <span class="mobile-stat-label">代数</span>
-            <span class="mobile-stat-value" id="mobileGeneration">0</span>
-        </div>
-        <div class="mobile-stat-item">
-            <span class="mobile-stat-label">状态</span>
-            <span class="mobile-stat-value" id="mobileStatus">已暂停</span>
-        </div>
-        <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
-    </div>
-
+    <!-- ==================== 桌面端控制面板 ==================== -->
     <div class="control-panel">
         <button class="control-button" id="playPauseBtn">
             <span id="playPauseText">开始游戏</span>
         </button>
-        
+
         <button class="control-button" id="editModeBtn">
             进入编辑模式
         </button>
 
         <div class="speed-control">
-            <label class="speed-label">动画速度</label>
+            <label class="speed-label" for="speedSlider">动画速度</label>
             <input type="range" class="speed-slider" id="speedSlider" min="1" max="60" value="10">
             <div class="speed-value" id="speedValue">10 代/秒</div>
         </div>
@@ -670,34 +675,63 @@
         <button class="control-button" id="clearBtn">
             清空
         </button>
-        
+
         <button class="control-button" id="randomBtn">
             随机填充
         </button>
     </div>
 
-    <!-- 移动端控制菜单 -->
+    <!-- ==================== 移动端顶部统计条 ==================== -->
+    <div class="mobile-top-bar" id="mobileTopBar">
+        <div class="m-stats">
+            <div class="m-stat">
+                <span class="m-stat-label">存活</span>
+                <span class="m-stat-value" id="mobileAliveCells">0</span>
+            </div>
+            <div class="m-stat">
+                <span class="m-stat-label">面积</span>
+                <span class="m-stat-value" id="mobileCellArea">0</span>
+            </div>
+            <div class="m-stat">
+                <span class="m-stat-label">代数</span>
+                <span class="m-stat-value" id="mobileGeneration">0</span>
+            </div>
+            <div class="m-stat">
+                <span class="m-stat-label">状态</span>
+                <span class="m-stat-value" id="mobileStatus">已暂停</span>
+            </div>
+        </div>
+        <button id="mobileMenuToggle" type="button" aria-label="控制菜单">☰</button>
+    </div>
+
+    <!-- ==================== 移动端遮罩 ==================== -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+
+    <!-- ==================== 移动端底部控制面板 ==================== -->
     <div class="mobile-control-menu" id="mobileControlMenu">
-        <button class="control-button mobile" id="mobilePlayPauseBtn">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">控制面板</div>
+
+        <button class="control-button" id="mobilePlayPauseBtn">
             <span id="mobilePlayPauseText">开始游戏</span>
         </button>
-        
-        <button class="control-button mobile" id="mobileEditModeBtn">
+
+        <button class="control-button" id="mobileEditModeBtn">
             进入编辑模式
         </button>
 
         <div class="speed-control">
-            <label class="speed-label">动画速度</label>
+            <label class="speed-label" for="mobileSpeedSlider">动画速度</label>
             <input type="range" class="speed-slider" id="mobileSpeedSlider" min="1" max="60" value="10">
             <div class="speed-value" id="mobileSpeedValue">10 代/秒</div>
         </div>
 
-        <button class="control-button rules-button mobile" id="mobileRulesBtn">
+        <button class="control-button rules-button" id="mobileRulesBtn">
             游戏规则
         </button>
 
         <div class="examples-dropdown">
-            <button class="control-button examples-button mobile" id="mobileExamplesBtn">
+            <button class="control-button examples-button" id="mobileExamplesBtn">
                 示例动画
             </button>
             <div class="examples-menu" id="mobileExamplesMenu">
@@ -712,593 +746,740 @@
 
         <div class="separator"></div>
 
-        <button class="control-button mobile" id="mobileClearBtn">
-            清空
-        </button>
-        
-        <button class="control-button mobile" id="mobileRandomBtn">
-            随机填充
-        </button>
+        <div class="mobile-actions">
+            <button class="control-button" id="mobileClearBtn">清空</button>
+            <button class="control-button" id="mobileRandomBtn">随机填充</button>
+        </div>
     </div>
 
+    <!-- ==================== 规则弹窗 ==================== -->
     <div class="modal" id="rulesModal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="modal-title">游戏规则</h2>
-                <button class="close-button" id="closeModal">×</button>
+                <button class="close-button" id="closeModal" type="button" aria-label="关闭">×</button>
             </div>
             <ul class="rules-list">
                 <li>
-                    <div class="rule-number">规则 1</div>
-                    <div class="rule-text">活细胞周围活邻居少于 2 个：死亡（孤独）</div>
+                    <div class="rule-number">规则 1 · 孤独</div>
+                    <div class="rule-text">活细胞周围活邻居少于 2 个：死亡</div>
                 </li>
                 <li>
-                    <div class="rule-number">规则 2</div>
+                    <div class="rule-number">规则 2 · 存活</div>
                     <div class="rule-text">活细胞周围有 2 或 3 个活邻居：继续存活</div>
                 </li>
                 <li>
-                    <div class="rule-number">规则 3</div>
-                    <div class="rule-text">活细胞周围超过 3 个活邻居：死亡（拥挤）</div>
+                    <div class="rule-number">规则 3 · 拥挤</div>
+                    <div class="rule-text">活细胞周围超过 3 个活邻居：死亡</div>
                 </li>
                 <li>
-                    <div class="rule-number">规则 4</div>
-                    <div class="rule-text">死细胞周围恰好有 3 个活邻居：繁殖，变成活细胞</div>
+                    <div class="rule-number">规则 4 · 繁殖</div>
+                    <div class="rule-text">死细胞周围恰好有 3 个活邻居：变成活细胞</div>
+                </li>
+                <li>
+                    <div class="rule-number">边界说明</div>
+                    <div class="rule-text">每个细胞有 8 个邻居，网格边界之外一律视为死亡细胞；每一代同时更新。</div>
                 </li>
             </ul>
         </div>
     </div>
 
-    <script>
-        class GameOfLife {
-            constructor() {
-                this.canvas = document.getElementById('gameCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.cellSize = 20;
-                this.grid = [];
-                this.nextGrid = [];
-                this.isRunning = false;
-                this.isEditing = false;
-                this.generation = 0;
-                this.fps = 10;
-                this.lastUpdate = 0;
-                this.isMouseDown = false;
-                this.lastCellPos = null;
-                
-                this.setupCanvas();
-                this.initializeGrid();
-                this.setupEventListeners();
-                this.draw();
-                this.updateStats();
-            }
+    <!-- ==================== 提示条 ==================== -->
+    <div class="toast" id="toast"></div>
 
-            setupCanvas() {
-                const resize = () => {
-                    const dpr = window.devicePixelRatio || 1;
-                    this.canvas.width = window.innerWidth;
-                    this.canvas.height = window.innerHeight;
-                    this.canvas.style.width = window.innerWidth + 'px';
-                    this.canvas.style.height = window.innerHeight + 'px';
-                    
-                    this.cols = Math.floor(this.canvas.width / this.cellSize);
-                    this.rows = Math.floor(this.canvas.height / this.cellSize);
-                    
-                    this.initializeGrid();
-                    this.draw();
-                };
-                
-                window.addEventListener('resize', resize);
-                resize();
-            }
+<script>
+(function () {
+    'use strict';
 
-            initializeGrid() {
-                this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
-                this.nextGrid = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
-            }
+    var $ = function (id) { return document.getElementById(id); };
 
-            setupEventListeners() {
-                // Canvas events
-                this.canvas.addEventListener('mousedown', this.handleMouseDown.bind(this));
-                this.canvas.addEventListener('mousemove', this.handleMouseMove.bind(this));
-                this.canvas.addEventListener('mouseup', this.handleMouseUp.bind(this));
-                this.canvas.addEventListener('mouseleave', this.handleMouseUp.bind(this));
-                
-                // Touch events
-                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
-                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
-                this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
-                
-                // Control toggle for mobile
-                const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-                if (mobileMenuToggle) {
-                    mobileMenuToggle.addEventListener('click', this.toggleMobileControl.bind(this));
-                }
-                
-                // Desktop control buttons
-                document.getElementById('playPauseBtn').addEventListener('click', this.togglePlayPause.bind(this));
-                document.getElementById('editModeBtn').addEventListener('click', this.toggleEditMode.bind(this));
-                document.getElementById('clearBtn').addEventListener('click', this.clearGrid.bind(this));
-                document.getElementById('randomBtn').addEventListener('click', this.randomFill.bind(this));
-                document.getElementById('rulesBtn').addEventListener('click', this.showRules.bind(this));
-                
-                // Mobile control buttons
-                document.getElementById('mobilePlayPauseBtn').addEventListener('click', this.togglePlayPause.bind(this));
-                document.getElementById('mobileEditModeBtn').addEventListener('click', this.toggleEditMode.bind(this));
-                document.getElementById('mobileClearBtn').addEventListener('click', this.clearGrid.bind(this));
-                document.getElementById('mobileRandomBtn').addEventListener('click', this.randomFill.bind(this));
-                document.getElementById('mobileRulesBtn').addEventListener('click', this.showRules.bind(this));
-                
-                // Speed control
-                const speedSlider = document.getElementById('speedSlider');
-                speedSlider.addEventListener('input', (e) => {
-                    this.fps = parseInt(e.target.value);
-                    document.getElementById('speedValue').textContent = `${this.fps} 代/秒`;
-                });
-                
-                const mobileSpeedSlider = document.getElementById('mobileSpeedSlider');
-                mobileSpeedSlider.addEventListener('input', (e) => {
-                    this.fps = parseInt(e.target.value);
-                    document.getElementById('mobileSpeedValue').textContent = `${this.fps} 代/秒`;
-                });
-                
-                // Examples dropdown
-                const examplesBtn = document.getElementById('examplesBtn');
-                const examplesMenu = document.getElementById('examplesMenu');
-                const mobileExamplesBtn = document.getElementById('mobileExamplesBtn');
-                const mobileExamplesMenu = document.getElementById('mobileExamplesMenu');
-                
-                examplesBtn.addEventListener('click', () => {
-                    examplesMenu.classList.toggle('show');
-                });
-                
-                mobileExamplesBtn.addEventListener('click', () => {
-                    mobileExamplesMenu.classList.toggle('show');
-                });
-                
-                document.querySelectorAll('.example-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const pattern = item.dataset.pattern;
-                        this.loadPattern(pattern);
-                        examplesMenu.classList.remove('show');
-                        mobileExamplesMenu.classList.remove('show');
-                    });
-                });
-                
-                // Close dropdown when clicking outside
-                document.addEventListener('click', (e) => {
-                    if (!examplesBtn.contains(e.target) && !examplesMenu.contains(e.target)) {
-                        examplesMenu.classList.remove('show');
-                    }
-                    if (!mobileExamplesBtn.contains(e.target) && !mobileExamplesMenu.contains(e.target)) {
-                        mobileExamplesMenu.classList.remove('show');
-                    }
-                });
-                
-                // Close modal
-                document.getElementById('closeModal').addEventListener('click', this.hideRules.bind(this));
-            }
+    /* ---------------- 示例图案 ---------------- */
+    var PATTERNS = {
+        glider: [
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 1, 1]
+        ],
+        blinker: [
+            [1, 1, 1]
+        ],
+        toad: [
+            [0, 1, 1, 1],
+            [1, 1, 1, 0]
+        ],
+        beacon: [
+            [1, 1, 0, 0],
+            [1, 0, 0, 0],
+            [0, 0, 0, 1],
+            [0, 0, 1, 1]
+        ],
+        pulsar: [
+            [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+            [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0]
+        ],
+        gosper: [
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+            [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+    };
 
-            toggleMobileControl() {
-                const mobileControlMenu = document.getElementById('mobileControlMenu');
-                if (mobileControlMenu) {
-                    mobileControlMenu.classList.toggle('show');
-                    // 防止菜单遮挡点击区域
-                    if (mobileControlMenu.classList.contains('show')) {
-                        document.body.style.overflow = 'hidden';
-                    } else {
-                        document.body.style.overflow = 'auto';
-                    }
-                }
-            }
+    /* ================================================================
+       GameOfLife
+       ================================================================ */
+    function GameOfLife() {
+        this.canvas = $('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
 
-            handleMouseDown(e) {
-                if (this.isEditing) {
-                    this.isMouseDown = true;
-                    const cellPos = this.getCellPosition(e);
-                    this.toggleCell(cellPos.row, cellPos.col);
-                }
-            }
+        this.cellSize = 20;
+        this.rows = 0;
+        this.cols = 0;
+        this.viewW = 0;
+        this.viewH = 0;
+        this.grid = [];
+        this.nextGrid = [];
 
-            handleMouseMove(e) {
-                if (this.isEditing && this.isMouseDown) {
-                    const cellPos = this.getCellPosition(e);
-                    if (this.lastCellPos && 
-                        (this.lastCellPos.row !== cellPos.row || this.lastCellPos.col !== cellPos.col)) {
-                        this.toggleCell(cellPos.row, cellPos.col);
-                        this.lastCellPos = cellPos;
-                    }
-                }
-            }
+        this.isRunning = false;
+        this.isEditing = false;
+        this.generation = 0;
+        this.fps = 10;
+        this.lastUpdate = 0;
+        this.isPointerDown = false;
+        this.lastCellPos = null;
+        this.statusText = '已暂停';
+        this.toastTimer = null;
 
-            handleMouseUp() {
-                this.isMouseDown = false;
-                this.lastCellPos = null;
-            }
+        this.setupCanvas();
+        this.setupEventListeners();
+        this.updateStats();
+    }
 
-            handleTouchStart(e) {
+    /* ---------------- 画布尺寸 / DPR ---------------- */
+    GameOfLife.prototype.setupCanvas = function () {
+        var self = this;
+
+        function resize() {
+            var dpr = Math.min(window.devicePixelRatio || 1, 2);
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+
+            self.viewW = w;
+            self.viewH = h;
+
+            self.canvas.width = Math.floor(w * dpr);
+            self.canvas.height = Math.floor(h * dpr);
+            self.canvas.style.width = w + 'px';
+            self.canvas.style.height = h + 'px';
+
+            self.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            self.resizeGrid(
+                Math.max(1, Math.floor(h / self.cellSize)),
+                Math.max(1, Math.floor(w / self.cellSize))
+            );
+            self.draw();
+        }
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('orientationchange', function () {
+            setTimeout(resize, 150);
+        });
+
+        resize();
+    };
+
+    /* 改变网格尺寸时保留原有细胞（窗口缩放 / 旋转屏幕不丢内容） */
+    GameOfLife.prototype.resizeGrid = function (rows, cols) {
+        var old = this.grid || [];
+        var grid = [];
+        var r, c;
+
+        for (r = 0; r < rows; r++) {
+            grid.push(new Array(cols).fill(0));
+        }
+        for (r = 0; r < Math.min(rows, old.length); r++) {
+            for (c = 0; c < Math.min(cols, old[r].length); c++) {
+                grid[r][c] = old[r][c];
+            }
+        }
+
+        this.grid = grid;
+        this.nextGrid = [];
+        for (r = 0; r < rows; r++) {
+            this.nextGrid.push(new Array(cols).fill(0));
+        }
+        this.rows = rows;
+        this.cols = cols;
+    };
+
+    GameOfLife.prototype.emptyGrid = function () {
+        var g = [], r;
+        for (r = 0; r < this.rows; r++) { g.push(new Array(this.cols).fill(0)); }
+        return g;
+    };
+
+    /* ---------------- 事件绑定 ---------------- */
+    GameOfLife.prototype.setupEventListeners = function () {
+        var self = this;
+
+        function on(id, type, fn) {
+            var el = $(id);
+            if (el) { el.addEventListener(type, fn); }
+        }
+
+        /* --- 画布：指针事件统一处理鼠标与触摸 --- */
+        this.canvas.addEventListener('pointerdown', function (e) { self.onPointerDown(e); });
+        this.canvas.addEventListener('pointermove', function (e) { self.onPointerMove(e); });
+        this.canvas.addEventListener('pointerup', function () { self.onPointerUp(); });
+        this.canvas.addEventListener('pointercancel', function () { self.onPointerUp(); });
+
+        /* --- 桌面端按钮 --- */
+        on('playPauseBtn', 'click', function () { self.togglePlayPause(); });
+        on('editModeBtn', 'click', function () { self.toggleEditMode(); });
+        on('clearBtn', 'click', function () { self.clearGrid(); });
+        on('randomBtn', 'click', function () { self.randomFill(); });
+        on('rulesBtn', 'click', function () { self.showRules(); });
+        on('closeModal', 'click', function () { self.hideRules(); });
+
+        /* --- 移动端按钮 --- */
+        on('mobileMenuToggle', 'click', function () { self.toggleMobileMenu(); });
+        on('menuOverlay', 'click', function () { self.toggleMobileMenu(false); });
+        on('mobilePlayPauseBtn', 'click', function () {
+            self.togglePlayPause();
+            self.toggleMobileMenu(false);
+        });
+        on('mobileEditModeBtn', 'click', function () {
+            self.toggleEditMode();
+            self.toggleMobileMenu(false);
+        });
+        on('mobileClearBtn', 'click', function () {
+            self.clearGrid();
+            self.toggleMobileMenu(false);
+        });
+        on('mobileRandomBtn', 'click', function () {
+            self.randomFill();
+            self.toggleMobileMenu(false);
+        });
+        on('mobileRulesBtn', 'click', function () {
+            self.toggleMobileMenu(false);
+            self.showRules();
+        });
+
+        /* --- 速度滑块（两端同步） --- */
+        var sliders = [$('speedSlider'), $('mobileSpeedSlider')];
+        sliders.forEach(function (slider) {
+            if (!slider) { return; }
+            slider.addEventListener('input', function (e) {
+                self.setFps(parseInt(e.target.value, 10));
+            });
+        });
+
+        /* --- 示例动画下拉 --- */
+        var examplesBtn = $('examplesBtn');
+        var examplesMenu = $('examplesMenu');
+        var mobileExamplesBtn = $('mobileExamplesBtn');
+        var mobileExamplesMenu = $('mobileExamplesMenu');
+
+        if (examplesBtn && examplesMenu) {
+            examplesBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                examplesMenu.classList.toggle('show');
+            });
+        }
+        if (mobileExamplesBtn && mobileExamplesMenu) {
+            mobileExamplesBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                mobileExamplesMenu.classList.toggle('show');
+            });
+        }
+
+        document.querySelectorAll('.example-item').forEach(function (item) {
+            item.addEventListener('click', function () {
+                self.loadPattern(item.dataset.pattern);
+            });
+        });
+
+        /* --- 点击空白处收起下拉 --- */
+        document.addEventListener('click', function (e) {
+            if (examplesBtn && examplesMenu &&
+                !examplesBtn.contains(e.target) && !examplesMenu.contains(e.target)) {
+                examplesMenu.classList.remove('show');
+            }
+            if (mobileExamplesBtn && mobileExamplesMenu &&
+                !mobileExamplesBtn.contains(e.target) && !mobileExamplesMenu.contains(e.target)) {
+                mobileExamplesMenu.classList.remove('show');
+            }
+        });
+
+        /* --- 点击弹窗背景关闭 --- */
+        var modal = $('rulesModal');
+        if (modal) {
+            modal.addEventListener('click', function (e) {
+                if (e.target === modal) { self.hideRules(); }
+            });
+        }
+
+        /* --- 键盘快捷键 --- */
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                self.hideRules();
+                self.toggleMobileMenu(false);
+            } else if (e.code === 'Space') {
                 e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = new MouseEvent('mousedown', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY
-                });
-                this.canvas.dispatchEvent(mouseEvent);
+                self.togglePlayPause();
             }
+        });
+    };
 
-            handleTouchMove(e) {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const mouseEvent = new MouseEvent('mousemove', {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY
-                });
-                this.canvas.dispatchEvent(mouseEvent);
+    /* ---------------- 移动端菜单 ---------------- */
+    GameOfLife.prototype.isMobile = function () {
+        return window.matchMedia('(max-width: 768px)').matches;
+    };
+
+    GameOfLife.prototype.toggleMobileMenu = function (force) {
+        var menu = $('mobileControlMenu');
+        var overlay = $('menuOverlay');
+        var toggle = $('mobileMenuToggle');
+        if (!menu) { return; }
+
+        var open = (typeof force === 'boolean') ? force : !menu.classList.contains('show');
+
+        menu.classList.toggle('show', open);
+        if (overlay) { overlay.classList.toggle('show', open); }
+        if (toggle) { toggle.textContent = open ? '×' : '☰'; }
+    };
+
+    /* ---------------- 指针编辑 ---------------- */
+    GameOfLife.prototype.onPointerDown = function (e) {
+        if (!this.isEditing) { return; }
+        e.preventDefault();
+        this.isPointerDown = true;
+
+        if (this.canvas.setPointerCapture) {
+            try { this.canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        }
+
+        var pos = this.getCellPosition(e);
+        this.toggleCell(pos.row, pos.col);
+        this.lastCellPos = pos;
+    };
+
+    GameOfLife.prototype.onPointerMove = function (e) {
+        if (!this.isEditing || !this.isPointerDown) { return; }
+        e.preventDefault();
+
+        var pos = this.getCellPosition(e);
+        if (!this.lastCellPos ||
+            this.lastCellPos.row !== pos.row ||
+            this.lastCellPos.col !== pos.col) {
+            this.toggleCell(pos.row, pos.col);
+            this.lastCellPos = pos;
+        }
+    };
+
+    GameOfLife.prototype.onPointerUp = function () {
+        this.isPointerDown = false;
+        this.lastCellPos = null;
+    };
+
+    GameOfLife.prototype.getCellPosition = function (e) {
+        var rect = this.canvas.getBoundingClientRect();
+        return {
+            row: Math.floor((e.clientY - rect.top) / this.cellSize),
+            col: Math.floor((e.clientX - rect.left) / this.cellSize)
+        };
+    };
+
+    GameOfLife.prototype.toggleCell = function (row, col) {
+        if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) { return; }
+        this.grid[row][col] = this.grid[row][col] ? 0 : 1;
+        this.draw();
+        this.updateStats();
+    };
+
+    /* ---------------- 控制 ---------------- */
+    GameOfLife.prototype.setFps = function (fps) {
+        if (!fps || fps < 1) { fps = 1; }
+        this.fps = fps;
+
+        var desktopSlider = $('speedSlider');
+        var mobileSlider = $('mobileSpeedSlider');
+        if (desktopSlider) { desktopSlider.value = fps; }
+        if (mobileSlider) { mobileSlider.value = fps; }
+
+        var desktopValue = $('speedValue');
+        var mobileValue = $('mobileSpeedValue');
+        if (desktopValue) { desktopValue.textContent = fps + ' 代/秒'; }
+        if (mobileValue) { mobileValue.textContent = fps + ' 代/秒'; }
+    };
+
+    GameOfLife.prototype.setPlayButton = function (running) {
+        var text = running ? '暂停' : '开始游戏';
+        var d = $('playPauseText');
+        var m = $('mobilePlayPauseText');
+        if (d) { d.textContent = text; }
+        if (m) { m.textContent = text; }
+    };
+
+    GameOfLife.prototype.setEditButton = function (editing) {
+        var text = editing ? '退出编辑模式' : '进入编辑模式';
+        var d = $('editModeBtn');
+        var m = $('mobileEditModeBtn');
+        if (d) { d.textContent = text; d.classList.toggle('edit-mode', editing); }
+        if (m) { m.textContent = text; m.classList.toggle('edit-mode', editing); }
+    };
+
+    GameOfLife.prototype.updateStatus = function (status) {
+        this.statusText = status;
+        var d = $('status');
+        var m = $('mobileStatus');
+        if (d) { d.textContent = status; }
+        if (m) { m.textContent = status; }
+    };
+
+    GameOfLife.prototype.showToast = function (message) {
+        var toast = $('toast');
+        if (!toast) { return; }
+
+        toast.textContent = message;
+        toast.classList.add('show');
+
+        if (this.toastTimer) { clearTimeout(this.toastTimer); }
+        var self = this;
+        this.toastTimer = setTimeout(function () {
+            toast.classList.remove('show');
+            self.toastTimer = null;
+        }, 2400);
+    };
+
+    GameOfLife.prototype.startAnimation = function () {
+        if (this.isRunning) { return; }
+        this.isRunning = true;
+        this.lastUpdate = 0;
+        this.setPlayButton(true);
+        this.updateStatus('运行中');
+
+        var self = this;
+        requestAnimationFrame(function (t) { self.animate(t); });
+    };
+
+    GameOfLife.prototype.stopAnimation = function () {
+        this.isRunning = false;
+        this.lastUpdate = 0;
+        this.setPlayButton(false);
+    };
+
+    GameOfLife.prototype.togglePlayPause = function () {
+        if (this.isRunning) {
+            this.stopAnimation();
+            this.updateStatus('已暂停');
+            return;
+        }
+
+        if (this.countAliveCells() === 0) {
+            this.showToast('请先绘制细胞或加载示例动画');
+            return;
+        }
+
+        this.isEditing = false;
+        this.setEditButton(false);
+        this.canvas.style.cursor = 'crosshair';
+        this.startAnimation();
+    };
+
+    GameOfLife.prototype.toggleEditMode = function () {
+        this.isEditing = !this.isEditing;
+
+        if (this.isEditing) {
+            this.stopAnimation();
+            this.updateStatus('编辑中');
+            this.canvas.style.cursor = 'crosshair';
+        } else {
+            this.updateStatus('已暂停');
+            this.canvas.style.cursor = 'default';
+        }
+
+        this.setEditButton(this.isEditing);
+    };
+
+    GameOfLife.prototype.clearGrid = function () {
+        this.stopAnimation();
+        this.grid = this.emptyGrid();
+        this.nextGrid = this.emptyGrid();
+        this.generation = 0;
+        this.draw();
+        this.updateStats();
+        this.updateStatus(this.isEditing ? '编辑中' : '已暂停');
+    };
+
+    GameOfLife.prototype.randomFill = function () {
+        for (var row = 0; row < this.rows; row++) {
+            for (var col = 0; col < this.cols; col++) {
+                this.grid[row][col] = Math.random() < 0.3 ? 1 : 0;
             }
+        }
+        this.generation = 0;
+        this.draw();
+        this.updateStats();
+    };
 
-            handleTouchEnd(e) {
-                e.preventDefault();
-                const mouseEvent = new MouseEvent('mouseup', {});
-                this.canvas.dispatchEvent(mouseEvent);
+    GameOfLife.prototype.showRules = function () {
+        var modal = $('rulesModal');
+        if (modal) { modal.classList.add('show'); }
+    };
+
+    GameOfLife.prototype.hideRules = function () {
+        var modal = $('rulesModal');
+        if (modal) { modal.classList.remove('show'); }
+    };
+
+    /* ---------------- 统计 ---------------- */
+    GameOfLife.prototype.updateStats = function () {
+        var aliveCells = this.countAliveCells();
+        var cellArea = this.calculateCellArea();
+
+        var el;
+        el = $('aliveCells'); if (el) { el.textContent = aliveCells; }
+        el = $('cellArea'); if (el) { el.textContent = cellArea; }
+        el = $('generation'); if (el) { el.textContent = this.generation; }
+        el = $('mobileAliveCells'); if (el) { el.textContent = aliveCells; }
+        el = $('mobileCellArea'); if (el) { el.textContent = cellArea; }
+        el = $('mobileGeneration'); if (el) { el.textContent = this.generation; }
+        el = $('mobileStatus'); if (el) { el.textContent = this.statusText; }
+        el = $('status'); if (el) { el.textContent = this.statusText; }
+
+        /* 全部死亡：停下并提示（绝不递归调用动画） */
+        if (aliveCells === 0 && this.isRunning && this.generation > 0) {
+            this.isRunning = false;
+            this.lastUpdate = 0;
+            this.setPlayButton(false);
+            this.updateStatus('全部死亡');
+            this.showToast('全部细胞已死亡，游戏结束');
+        }
+    };
+
+    GameOfLife.prototype.countAliveCells = function () {
+        var count = 0;
+        for (var row = 0; row < this.rows; row++) {
+            for (var col = 0; col < this.cols; col++) {
+                count += this.grid[row][col];
             }
+        }
+        return count;
+    };
 
-            getCellPosition(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                const col = Math.floor(x / this.cellSize);
-                const row = Math.floor(y / this.cellSize);
-                return { row, col };
-            }
+    /* 存活细胞的外接矩形面积 */
+    GameOfLife.prototype.calculateCellArea = function () {
+        var minRow = Infinity, maxRow = -Infinity;
+        var minCol = Infinity, maxCol = -Infinity;
+        var found = false;
 
-            toggleCell(row, col) {
-                if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
-                    this.grid[row][col] = this.grid[row][col] ? 0 : 1;
-                    this.draw();
-                    this.updateStats();
-                }
-            }
-
-            togglePlayPause() {
-                this.isRunning = !this.isRunning;
-                this.isEditing = false;
-                
-                const playPauseBtn = document.getElementById('playPauseBtn');
-                const playPauseText = document.getElementById('playPauseText');
-                const editModeBtn = document.getElementById('editModeBtn');
-                
-                if (this.isRunning) {
-                    playPauseText.textContent = '暂停';
-                    editModeBtn.textContent = '进入编辑模式';
-                    editModeBtn.classList.remove('edit-mode');
-                    this.updateStatus('运行中');
-                    this.animate();
-                } else {
-                    playPauseText.textContent = '开始游戏';
-                    this.updateStatus('已暂停');
-                }
-            }
-
-            toggleEditMode() {
-                this.isEditing = !this.isEditing;
-                this.isRunning = false;
-                
-                const editModeBtn = document.getElementById('editModeBtn');
-                const playPauseText = document.getElementById('playPauseText');
-                const playPauseBtn = document.getElementById('playPauseBtn');
-                
-                if (this.isEditing) {
-                    editModeBtn.textContent = '退出编辑模式';
-                    editModeBtn.classList.add('edit-mode');
-                    playPauseText.textContent = '开始游戏';
-                    this.updateStatus('编辑中');
-                    this.canvas.style.cursor = 'crosshair';
-                } else {
-                    editModeBtn.textContent = '进入编辑模式';
-                    editModeBtn.classList.remove('edit-mode');
-                    this.updateStatus('已暂停');
-                    this.canvas.style.cursor = 'default';
-                }
-            }
-
-            clearGrid() {
-                this.grid = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
-                this.generation = 0;
-                this.draw();
-                this.updateStats();
-                
-                if (this.isRunning) {
-                    this.togglePlayPause();
-                }
-            }
-
-            randomFill() {
-                for (let row = 0; row < this.rows; row++) {
-                    for (let col = 0; col < this.cols; col++) {
-                        this.grid[row][col] = Math.random() < 0.3 ? 1 : 0;
-                    }
-                }
-                this.draw();
-                this.updateStats();
-            }
-
-            showRules() {
-                document.getElementById('rulesModal').classList.add('show');
-            }
-
-            hideRules() {
-                document.getElementById('rulesModal').classList.remove('show');
-            }
-
-            updateStatus(status) {
-                document.getElementById('status').textContent = status;
-                document.getElementById('mobileStatus')?.textContent = status;
-            }
-
-            updateStats() {
-                const aliveCells = this.countAliveCells();
-                const cellArea = this.calculateCellArea();
-                const status = document.getElementById('status').textContent;
-                
-                // 更新桌面端统计
-                document.getElementById('aliveCells').textContent = aliveCells;
-                document.getElementById('cellArea').textContent = cellArea;
-                document.getElementById('generation').textContent = this.generation;
-                
-                // 更新移动端统计
-                const mobileAliveCells = document.getElementById('mobileAliveCells');
-                const mobileCellArea = document.getElementById('mobileCellArea');
-                const mobileGeneration = document.getElementById('mobileGeneration');
-                const mobileStatus = document.getElementById('mobileStatus');
-                
-                if (mobileAliveCells) mobileAliveCells.textContent = aliveCells;
-                if (mobileCellArea) mobileCellArea.textContent = cellArea;
-                if (mobileGeneration) mobileGeneration.textContent = this.generation;
-                if (mobileStatus) mobileStatus.textContent = status;
-                
-                if (aliveCells === 0 && this.isRunning) {
-                    this.isRunning = false;
-                    document.getElementById('playPauseText').textContent = '开始游戏';
-                    this.updateStatus('全部死亡');
-                    
-                    // Pause the game
-                    const playPauseBtn = document.getElementById('playPauseBtn');
-                    playPauseBtn.click();
-                }
-            }
-
-            countAliveCells() {
-                let count = 0;
-                for (let row = 0; row < this.rows; row++) {
-                    for (let col = 0; col < this.cols; col++) {
-                        count += this.grid[row][col];
-                    }
-                }
-                return count;
-            }
-
-            calculateCellArea() {
-                const aliveCells = [];
-                for (let row = 0; row < this.rows; row++) {
-                    for (let col = 0; col < this.cols; col++) {
-                        if (this.grid[row][col] === 1) {
-                            aliveCells.push({ row, col });
-                        }
-                    }
-                }
-                
-                if (aliveCells.length === 0) return 0;
-                
-                const rows = aliveCells.map(cell => cell.row);
-                const cols = aliveCells.map(cell => cell.col);
-                
-                const minRow = Math.min(...rows);
-                const maxRow = Math.max(...rows);
-                const minCol = Math.min(...cols);
-                const maxCol = Math.max(...cols);
-                
-                return (maxRow - minRow + 1) * (maxCol - minCol + 1);
-            }
-
-            countNeighbors(row, col) {
-                let count = 0;
-                for (let i = -1; i <= 1; i++) {
-                    for (let j = -1; j <= 1; j++) {
-                        if (i === 0 && j === 0) continue;
-                        
-                        const newRow = row + i;
-                        const newCol = col + j;
-                        
-                        if (newRow >= 0 && newRow < this.rows && newCol >= 0 && newCol < this.cols) {
-                            count += this.grid[newRow][newCol];
-                        }
-                    }
-                }
-                return count;
-            }
-
-            updateGrid() {
-                for (let row = 0; row < this.rows; row++) {
-                    for (let col = 0; col < this.cols; col++) {
-                        const neighbors = this.countNeighbors(row, col);
-                        const currentCell = this.grid[row][col];
-                        
-                        if (currentCell === 1) {
-                            // 活细胞
-                            if (neighbors < 2 || neighbors > 3) {
-                                this.nextGrid[row][col] = 0; // 死亡
-                            } else {
-                                this.nextGrid[row][col] = 1; // 存活
-                            }
-                        } else {
-                            // 死细胞
-                            if (neighbors === 3) {
-                                this.nextGrid[row][col] = 1; // 繁殖
-                            } else {
-                                this.nextGrid[row][col] = 0; // 保持死亡
-                            }
-                        }
-                    }
-                }
-                
-                // 交换网格
-                [this.grid, this.nextGrid] = [this.nextGrid, this.grid];
-                this.generation++;
-            }
-
-            draw() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                // 绘制网格线 - 桌面端边框更明显
-                this.ctx.strokeStyle = 'rgba(100, 120, 150, 0.25)';
-                this.ctx.lineWidth = 1;
-                
-                for (let i = 0; i <= this.rows; i++) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(0, i * this.cellSize);
-                    this.ctx.lineTo(this.canvas.width, i * this.cellSize);
-                    this.ctx.stroke();
-                }
-                
-                for (let i = 0; i <= this.cols; i++) {
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(i * this.cellSize, 0);
-                    this.ctx.lineTo(i * this.cellSize, this.canvas.height);
-                    this.ctx.stroke();
-                }
-                
-                // 绘制活细胞
-                for (let row = 0; row < this.rows; row++) {
-                    for (let col = 0; col < this.cols; col++) {
-                        if (this.grid[row][col] === 1) {
-                            const x = col * this.cellSize;
-                            const y = row * this.cellSize;
-                            
-                            // 创建发光效果
-                            const gradient = this.ctx.createRadialGradient(
-                                x + this.cellSize / 2, y + this.cellSize / 2, 0,
-                                x + this.cellSize / 2, y + this.cellSize / 2, this.cellSize / 2
-                            );
-                            gradient.addColorStop(0, 'rgba(0, 255, 136, 0.9)');
-                            gradient.addColorStop(0.5, 'rgba(0, 255, 136, 0.6)');
-                            gradient.addColorStop(1, 'rgba(0, 255, 136, 0.2)');
-                            
-                            this.ctx.fillStyle = gradient;
-                            this.ctx.fillRect(x + 1, y + 1, this.cellSize - 2, this.cellSize - 2);
-                            
-                            // 添加发光边框
-                            this.ctx.shadowColor = '#00ff88';
-                            this.ctx.shadowBlur = 10;
-                            this.ctx.strokeStyle = 'rgba(0, 255, 136, 0.8)';
-                            this.ctx.lineWidth = 1;
-                            this.ctx.strokeRect(x + 1, y + 1, this.cellSize - 2, this.cellSize - 2);
-                            this.ctx.shadowBlur = 0;
-                        }
-                    }
-                }
-            }
-
-            animate(currentTime = 0) {
-                if (!this.isRunning) return;
-                
-                const deltaTime = currentTime - this.lastUpdate;
-                const frameInterval = 1000 / this.fps;
-                
-                if (deltaTime >= frameInterval) {
-                    this.updateGrid();
-                    this.draw();
-                    this.updateStats();
-                    this.lastUpdate = currentTime;
-                }
-                
-                requestAnimationFrame((time) => this.animate(time));
-            }
-
-            loadPattern(patternName) {
-                this.clearGrid();
-                const centerRow = Math.floor(this.rows / 2);
-                const centerCol = Math.floor(this.cols / 2);
-                
-                const patterns = {
-                    glider: [
-                        [0, 1, 0],
-                        [0, 0, 1],
-                        [1, 1, 1]
-                    ],
-                    blinker: [
-                        [1, 1, 1]
-                    ],
-                    toad: [
-                        [0, 1, 1, 1],
-                        [1, 1, 1, 0]
-                    ],
-                    beacon: [
-                        [1, 1, 0, 0],
-                        [1, 0, 0, 0],
-                        [0, 0, 0, 1],
-                        [0, 0, 1, 1]
-                    ],
-                    pulsar: [
-                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0],
-                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-                        [1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0]
-                    ],
-                    gosper: [
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-                        [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                    ]
-                };
-                
-                const pattern = patterns[patternName];
-                if (pattern) {
-                    const patternHeight = pattern.length;
-                    const patternWidth = pattern[0].length;
-                    
-                    const startRow = centerRow - Math.floor(patternHeight / 2);
-                    const startCol = centerCol - Math.floor(patternWidth / 2);
-                    
-                    for (let row = 0; row < patternHeight; row++) {
-                        for (let col = 0; col < patternWidth; col++) {
-                            const gridRow = startRow + row;
-                            const gridCol = startCol + col;
-                            
-                            if (gridRow >= 0 && gridRow < this.rows && 
-                                gridCol >= 0 && gridCol < this.cols) {
-                                this.grid[gridRow][gridCol] = pattern[row][col];
-                            }
-                        }
-                    }
-                    
-                    this.draw();
-                    this.updateStats();
-                    
-                    // 自动开始游戏
-                    if (!this.isRunning) {
-                        this.togglePlayPause();
-                    }
+        for (var row = 0; row < this.rows; row++) {
+            for (var col = 0; col < this.cols; col++) {
+                if (this.grid[row][col] === 1) {
+                    found = true;
+                    if (row < minRow) { minRow = row; }
+                    if (row > maxRow) { maxRow = row; }
+                    if (col < minCol) { minCol = col; }
+                    if (col > maxCol) { maxCol = col; }
                 }
             }
         }
 
-        // 初始化游戏
-        document.addEventListener('DOMContentLoaded', () => {
-            new GameOfLife();
-        });
-    </script>
+        return found ? (maxRow - minRow + 1) * (maxCol - minCol + 1) : 0;
+    };
+
+    /* ---------------- 演化 ---------------- */
+    GameOfLife.prototype.countNeighbors = function (row, col) {
+        var count = 0;
+        for (var i = -1; i <= 1; i++) {
+            for (var j = -1; j <= 1; j++) {
+                if (i === 0 && j === 0) { continue; }
+                var r = row + i;
+                var c = col + j;
+                if (r >= 0 && r < this.rows && c >= 0 && c < this.cols) {
+                    count += this.grid[r][c];
+                }
+            }
+        }
+        return count;
+    };
+
+    GameOfLife.prototype.updateGrid = function () {
+        for (var row = 0; row < this.rows; row++) {
+            for (var col = 0; col < this.cols; col++) {
+                var neighbors = this.countNeighbors(row, col);
+                var alive = this.grid[row][col] === 1;
+
+                if (alive) {
+                    /* 孤独(<2) 或 拥挤(>3) 则死亡，2~3 存活 */
+                    this.nextGrid[row][col] = (neighbors === 2 || neighbors === 3) ? 1 : 0;
+                } else {
+                    /* 恰好 3 个活邻居则繁殖 */
+                    this.nextGrid[row][col] = (neighbors === 3) ? 1 : 0;
+                }
+            }
+        }
+
+        var tmp = this.grid;
+        this.grid = this.nextGrid;
+        this.nextGrid = tmp;
+        this.generation++;
+    };
+
+    /* ---------------- 绘制 ---------------- */
+    GameOfLife.prototype.draw = function () {
+        var ctx = this.ctx;
+        var size = this.cellSize;
+        var w = this.viewW;
+        var h = this.viewH;
+
+        ctx.clearRect(0, 0, w, h);
+
+        /* 网格线 */
+        ctx.strokeStyle = 'rgba(100, 120, 150, 0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (var i = 0; i <= this.rows; i++) {
+            var y = i * size;
+            if (y > h) { break; }
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+        }
+        for (var j = 0; j <= this.cols; j++) {
+            var x = j * size;
+            if (x > w) { break; }
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, h);
+        }
+        ctx.stroke();
+
+        /* 活细胞 */
+        var aliveCount = this.countAliveCells();
+        var lowDetail = aliveCount > 800;
+
+        for (var row = 0; row < this.rows; row++) {
+            for (var col = 0; col < this.cols; col++) {
+                if (this.grid[row][col] !== 1) { continue; }
+
+                var cx = col * size;
+                var cy = row * size;
+
+                if (lowDetail) {
+                    ctx.fillStyle = 'rgba(0, 255, 136, 0.85)';
+                    ctx.fillRect(cx + 1, cy + 1, size - 2, size - 2);
+                } else {
+                    var gradient = ctx.createRadialGradient(
+                        cx + size / 2, cy + size / 2, 0,
+                        cx + size / 2, cy + size / 2, size / 2
+                    );
+                    gradient.addColorStop(0, 'rgba(0, 255, 136, 0.9)');
+                    gradient.addColorStop(0.5, 'rgba(0, 255, 136, 0.6)');
+                    gradient.addColorStop(1, 'rgba(0, 255, 136, 0.2)');
+
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(cx + 1, cy + 1, size - 2, size - 2);
+
+                    ctx.shadowColor = '#00ff88';
+                    ctx.shadowBlur = 10;
+                    ctx.strokeStyle = 'rgba(0, 255, 136, 0.8)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(cx + 1, cy + 1, size - 2, size - 2);
+                    ctx.shadowBlur = 0;
+                }
+            }
+        }
+    };
+
+    /* ---------------- 动画循环 ---------------- */
+    GameOfLife.prototype.animate = function (currentTime) {
+        if (!this.isRunning) { return; }
+
+        if (!currentTime) { currentTime = 0; }
+        if (!this.lastUpdate) { this.lastUpdate = currentTime; }
+
+        var frameInterval = 1000 / this.fps;
+
+        if (currentTime - this.lastUpdate >= frameInterval) {
+            this.lastUpdate = currentTime;
+            this.updateGrid();
+            this.draw();
+            this.updateStats();
+
+            /* updateStats 可能判定“全部死亡”并停止游戏 */
+            if (!this.isRunning) { return; }
+        }
+
+        var self = this;
+        requestAnimationFrame(function (t) { self.animate(t); });
+    };
+
+    /* ---------------- 示例图案 ---------------- */
+    GameOfLife.prototype.loadPattern = function (patternName) {
+        var pattern = PATTERNS[patternName];
+        if (!pattern) { return; }
+
+        this.stopAnimation();
+        this.grid = this.emptyGrid();
+        this.nextGrid = this.emptyGrid();
+        this.generation = 0;
+
+        var startRow = Math.floor(this.rows / 2) - Math.floor(pattern.length / 2);
+        var startCol = Math.floor(this.cols / 2) - Math.floor(pattern[0].length / 2);
+
+        for (var row = 0; row < pattern.length; row++) {
+            for (var col = 0; col < pattern[row].length; col++) {
+                var gridRow = startRow + row;
+                var gridCol = startCol + col;
+                if (gridRow >= 0 && gridRow < this.rows &&
+                    gridCol >= 0 && gridCol < this.cols) {
+                    this.grid[gridRow][gridCol] = pattern[row][col];
+                }
+            }
+        }
+
+        this.draw();
+        this.updateStats();
+
+        var examplesMenu = $('examplesMenu');
+        var mobileExamplesMenu = $('mobileExamplesMenu');
+        if (examplesMenu) { examplesMenu.classList.remove('show'); }
+        if (mobileExamplesMenu) { mobileExamplesMenu.classList.remove('show'); }
+
+        this.toggleMobileMenu(false);
+
+        /* 加载后自动开始播放 */
+        this.startAnimation();
+    };
+
+    /* ---------------- 启动 ---------------- */
+    function init() {
+        window.gameOfLife = new GameOfLife();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
 </body>
 </html>
