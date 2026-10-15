@@ -485,41 +485,49 @@
         @media (max-width: 768px) {
             .stats-bar {
                 flex-direction: row;
-                gap: 16px;
-                padding: 8px 16px;
+                gap: 20px;
+                padding: 8px 20px;
                 top: 10px;
+                justify-content: center;
             }
 
             /* 移动端统计栏自动显示 */
             #mobileStatsBar {
                 display: flex;
+                gap: 24px;
             }
 
             .stat-item.mobile {
                 flex-direction: row;
-                gap: 4px;
+                gap: 8px;
                 align-items: center;
+                min-width: 120px;
             }
 
             .stat-label.mobile {
                 font-size: 10px;
+                min-width: 60px;
             }
 
             .stat-value.mobile {
                 font-size: 14px;
                 margin-left: 4px;
+                font-weight: 600;
+                min-width: 30px;
+                text-align: center;
             }
 
             .control-panel {
                 display: none;
             }
 
+            /* 移动端控制菜单默认隐藏，通过.show类显示 */
             .mobile-control-menu {
-                display: none;
+                display: none !important;
             }
 
             .mobile-control-menu.show {
-                display: block;
+                display: block !important;
             }
 
             /* 确保桌面端控制面板显示 */
