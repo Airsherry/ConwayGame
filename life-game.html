@@ -61,11 +61,29 @@
             animation: slideDown 0.6s ease-out;
         }
 
+        .stats-bar.mobile {
+            flex-direction: row;
+            gap: 16px;
+            padding: 8px 16px;
+            top: 10px;
+        }
+
         .stat-item {
             display: flex;
             flex-direction: column;
             align-items: center;
+            gap: 2px;
+        }
+
+        .stat-item.mobile {
+            flex-direction: row;
             gap: 4px;
+            align-items: center;
+        }
+
+        .stat-item.mobile .stat-value {
+            margin-left: 4px;
+            font-size: 14px;
         }
 
         .stat-label {
@@ -83,6 +101,14 @@
             text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
         }
 
+        .stat-label.mobile {
+            font-size: 10px;
+        }
+
+        .stat-value.mobile {
+            font-size: 14px;
+        }
+
         .control-panel {
             position: absolute;
             top: 20px;
@@ -95,6 +121,7 @@
             min-width: 260px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             animation: slideInRight 0.6s ease-out;
+            display: block;
         }
 
         .control-button {
@@ -111,6 +138,38 @@
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+        }
+
+        .control-button.mobile {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .control-toggle {
+            width: 36px;
+            height: 36px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 50%;
+            color: var(--text-primary);
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .control-toggle:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .control-toggle.mobile {
+            display: flex;
         }
 
         .control-button:before {
@@ -401,24 +460,103 @@
             }
         }
 
+        .mobile-control-menu {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transform: translateY(120%);
+            transition: transform 0.3s ease;
+            z-index: 998;
+            display: none;
+        }
+
+        .mobile-control-menu.show {
+            display: block;
+            transform: translateY(0);
+        }
+
         @media (max-width: 768px) {
             .stats-bar {
-                flex-direction: column;
+                flex-direction: row;
                 gap: 16px;
-                padding: 12px 16px;
+                padding: 8px 16px;
                 top: 10px;
             }
 
+            /* 移动端统计栏自动显示 */
+            #mobileStatsBar {
+                display: flex;
+            }
+
+            .stat-item.mobile {
+                flex-direction: row;
+                gap: 4px;
+                align-items: center;
+            }
+
+            .stat-label.mobile {
+                font-size: 10px;
+            }
+
+            .stat-value.mobile {
+                font-size: 14px;
+                margin-left: 4px;
+            }
+
             .control-panel {
-                top: auto;
-                bottom: 10px;
-                right: 10px;
-                left: 10px;
-                min-width: auto;
+                display: none;
+            }
+
+            .mobile-control-menu {
+                display: none;
+            }
+
+            .mobile-control-menu.show {
+                display: block;
+            }
+
+            /* 确保桌面端控制面板显示 */
+            @media (min-width: 769px) {
+                .control-panel {
+                    display: block !important;
+                }
+            }
+
+            /* 确保桌面端控制面板显示 */
+            @media (min-width: 769px) {
+                .control-panel {
+                    display: block;
+                }
+            }
+
+            /* 桌面端隐藏移动端控制切换按钮 */
+            #controlToggle {
+                display: none;
+            }
+
+            .mobile-control-menu {
+                display: none;
             }
 
             .modal-content {
                 padding: 20px;
+            }
+
+            .control-toggle {
+                display: none;
+            }
+
+            .control-toggle.mobile {
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
         }
     </style>
@@ -442,6 +580,29 @@
         <div class="stat-item">
             <div class="stat-label">状态</div>
             <div class="stat-value" id="status">已暂停</div>
+        </div>
+    </div>
+
+    <!-- 移动端控制切换按钮 -->
+    <button class="control-toggle mobile" id="controlToggle" style="display: none;">⚙️</button>
+
+    <!-- 移动端统计栏 -->
+    <div class="stats-bar mobile" id="mobileStatsBar" style="display: none;">
+        <div class="stat-item mobile">
+            <div class="stat-label mobile">存活细胞</div>
+            <div class="stat-value mobile" id="mobileAliveCells">0</div>
+        </div>
+        <div class="stat-item mobile">
+            <div class="stat-label mobile">细胞路径面积</div>
+            <div class="stat-value mobile" id="mobileCellArea">0</div>
+        </div>
+        <div class="stat-item mobile">
+            <div class="stat-label mobile">代数</div>
+            <div class="stat-value mobile" id="mobileGeneration">0</div>
+        </div>
+        <div class="stat-item mobile">
+            <div class="stat-label mobile">状态</div>
+            <div class="stat-value mobile" id="mobileStatus">已暂停</div>
         </div>
     </div>
 
@@ -485,6 +646,51 @@
         </button>
         
         <button class="control-button" id="randomBtn">
+            随机填充
+        </button>
+    </div>
+
+    <!-- 移动端控制菜单 -->
+    <div class="mobile-control-menu" id="mobileControlMenu">
+        <button class="control-button mobile" id="mobilePlayPauseBtn">
+            <span id="mobilePlayPauseText">开始游戏</span>
+        </button>
+        
+        <button class="control-button mobile" id="mobileEditModeBtn">
+            进入编辑模式
+        </button>
+
+        <div class="speed-control">
+            <label class="speed-label">动画速度</label>
+            <input type="range" class="speed-slider" id="mobileSpeedSlider" min="1" max="60" value="10">
+            <div class="speed-value" id="mobileSpeedValue">10 代/秒</div>
+        </div>
+
+        <button class="control-button rules-button mobile" id="mobileRulesBtn">
+            游戏规则
+        </button>
+
+        <div class="examples-dropdown">
+            <button class="control-button examples-button mobile" id="mobileExamplesBtn">
+                示例动画
+            </button>
+            <div class="examples-menu" id="mobileExamplesMenu">
+                <div class="example-item" data-pattern="glider">滑翔机</div>
+                <div class="example-item" data-pattern="blinker">闪烁器</div>
+                <div class="example-item" data-pattern="toad">蟾蜍</div>
+                <div class="example-item" data-pattern="beacon">信标</div>
+                <div class="example-item" data-pattern="pulsar">脉冲星</div>
+                <div class="example-item" data-pattern="gosper">高斯帕滑翔机枪</div>
+            </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <button class="control-button mobile" id="mobileClearBtn">
+            清空
+        </button>
+        
+        <button class="control-button mobile" id="mobileRandomBtn">
             随机填充
         </button>
     </div>
@@ -575,13 +781,24 @@
                 this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
                 this.canvas.addEventListener('touchend', this.handleTouchEnd.bind(this));
                 
-                // Control buttons
+                // Control toggle for mobile - only add listener on mobile devices
+                if (window.innerWidth <= 768) {
+                    document.getElementById('controlToggle').addEventListener('click', this.toggleMobileControl.bind(this));
+                }
+                
+                // Desktop control buttons
                 document.getElementById('playPauseBtn').addEventListener('click', this.togglePlayPause.bind(this));
                 document.getElementById('editModeBtn').addEventListener('click', this.toggleEditMode.bind(this));
                 document.getElementById('clearBtn').addEventListener('click', this.clearGrid.bind(this));
                 document.getElementById('randomBtn').addEventListener('click', this.randomFill.bind(this));
                 document.getElementById('rulesBtn').addEventListener('click', this.showRules.bind(this));
-                document.getElementById('closeModal').addEventListener('click', this.hideRules.bind(this));
+                
+                // Mobile control buttons
+                document.getElementById('mobilePlayPauseBtn').addEventListener('click', this.togglePlayPause.bind(this));
+                document.getElementById('mobileEditModeBtn').addEventListener('click', this.toggleEditMode.bind(this));
+                document.getElementById('mobileClearBtn').addEventListener('click', this.clearGrid.bind(this));
+                document.getElementById('mobileRandomBtn').addEventListener('click', this.randomFill.bind(this));
+                document.getElementById('mobileRulesBtn').addEventListener('click', this.showRules.bind(this));
                 
                 // Speed control
                 const speedSlider = document.getElementById('speedSlider');
@@ -590,12 +807,24 @@
                     document.getElementById('speedValue').textContent = `${this.fps} 代/秒`;
                 });
                 
+                const mobileSpeedSlider = document.getElementById('mobileSpeedSlider');
+                mobileSpeedSlider.addEventListener('input', (e) => {
+                    this.fps = parseInt(e.target.value);
+                    document.getElementById('mobileSpeedValue').textContent = `${this.fps} 代/秒`;
+                });
+                
                 // Examples dropdown
                 const examplesBtn = document.getElementById('examplesBtn');
                 const examplesMenu = document.getElementById('examplesMenu');
+                const mobileExamplesBtn = document.getElementById('mobileExamplesBtn');
+                const mobileExamplesMenu = document.getElementById('mobileExamplesMenu');
                 
                 examplesBtn.addEventListener('click', () => {
                     examplesMenu.classList.toggle('show');
+                });
+                
+                mobileExamplesBtn.addEventListener('click', () => {
+                    mobileExamplesMenu.classList.toggle('show');
                 });
                 
                 document.querySelectorAll('.example-item').forEach(item => {
@@ -603,6 +832,7 @@
                         const pattern = item.dataset.pattern;
                         this.loadPattern(pattern);
                         examplesMenu.classList.remove('show');
+                        mobileExamplesMenu.classList.remove('show');
                     });
                 });
                 
@@ -611,7 +841,20 @@
                     if (!examplesBtn.contains(e.target) && !examplesMenu.contains(e.target)) {
                         examplesMenu.classList.remove('show');
                     }
+                    if (!mobileExamplesBtn.contains(e.target) && !mobileExamplesMenu.contains(e.target)) {
+                        mobileExamplesMenu.classList.remove('show');
+                    }
                 });
+                
+                // Close modal
+                document.getElementById('closeModal').addEventListener('click', this.hideRules.bind(this));
+            }
+
+            toggleMobileControl() {
+                const mobileControlMenu = document.getElementById('mobileControlMenu');
+                if (mobileControlMenu) {
+                    mobileControlMenu.classList.toggle('show');
+                }
             }
 
             handleMouseDown(e) {
@@ -754,15 +997,29 @@
 
             updateStatus(status) {
                 document.getElementById('status').textContent = status;
+                document.getElementById('mobileStatus')?.textContent = status;
             }
 
             updateStats() {
                 const aliveCells = this.countAliveCells();
                 const cellArea = this.calculateCellArea();
+                const status = document.getElementById('status').textContent;
                 
+                // 更新桌面端统计
                 document.getElementById('aliveCells').textContent = aliveCells;
                 document.getElementById('cellArea').textContent = cellArea;
                 document.getElementById('generation').textContent = this.generation;
+                
+                // 更新移动端统计
+                const mobileAliveCells = document.getElementById('mobileAliveCells');
+                const mobileCellArea = document.getElementById('mobileCellArea');
+                const mobileGeneration = document.getElementById('mobileGeneration');
+                const mobileStatus = document.getElementById('mobileStatus');
+                
+                if (mobileAliveCells) mobileAliveCells.textContent = aliveCells;
+                if (mobileCellArea) mobileCellArea.textContent = cellArea;
+                if (mobileGeneration) mobileGeneration.textContent = this.generation;
+                if (mobileStatus) mobileStatus.textContent = status;
                 
                 if (aliveCells === 0 && this.isRunning) {
                     this.isRunning = false;
@@ -857,9 +1114,9 @@
             draw() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 
-                // 绘制网格线
-                this.ctx.strokeStyle = 'rgba(100, 120, 150, 0.15)';
-                this.ctx.lineWidth = 0.5;
+                // 绘制网格线 - 桌面端边框更明显
+                this.ctx.strokeStyle = 'rgba(100, 120, 150, 0.25)';
+                this.ctx.lineWidth = 1;
                 
                 for (let i = 0; i <= this.rows; i++) {
                     this.ctx.beginPath();
